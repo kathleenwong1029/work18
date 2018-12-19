@@ -13,19 +13,19 @@
 int server_handshake(int *to_client) {
   printf("[server] making well known pipe\n");
   int pipe = mkfifo("mario", 0666);
-  if(pipe){
-    printf("[server] pipe made\n");
-  }
-  else{
+  if(pipe==-1){
     printf("pipe failed\n");
     exit(0);
+  }
+  else{
+    printf("[server] pipe made\n");
   }
 
   //recieves message from client
   int from_client = open("mario", O_RDONLY);
   char msg[HANDSHAKE_BUFFER_SIZE] ;
   read(from_client,msg,HANDSHAKE_BUFFER_SIZE);
-  printf("[server] received msg from client\n");
+  printf("[server] received msg from client:%s\n",msg);
   printf("[server] removing well known pipe\n");
   remove("mario");
 
@@ -36,7 +36,7 @@ int server_handshake(int *to_client) {
   //waits for final response
   char response[HANDSHAKE_BUFFER_SIZE];
   read(from_client,response,sizeof(response));
-  printf("[server] recieved response\n");
+  printf("[server] recieved response:%s\n",response);
 
   return from_client;
 
@@ -53,35 +53,39 @@ int server_handshake(int *to_client) {
   returns the file descriptor for the downstream pipe.
   =========================*/
 int client_handshake(int *to_server) {
+  int pid = getpid();
   char msg[HANDSHAKE_BUFFER_SIZE];
+  sprintf(msg,"%d",pid);
   * to_server = open("mario",O_WRONLY);
-  if(to_server){
+  if(*to_server==-1){
+    printf("[client] failed to connect\n");
+    exit(0);
     printf("[client] connected to wkp\n");
   }
   else{
-    printf("[client] failed to connect\n");
-    exit(0);
+    printf("[client] connected to wkp\n");
   }
   //writes initial message to server
-  printf("[client] wrote to server\n");
+  printf("[client] wrote to server:%s\n",msg);
   write(*to_server,msg,sizeof(msg));
 
-  int private = mkfifo("luigi",0666);
-  if(private){
-    printf("[client] made private fifo\n");
-  }
-  else{
+  int private = mkfifo(msg,0666);
+  if(private==-1){
     printf("[client] failed to make private fifo\n");
     exit(0);
   }
+  else{
+    printf("[client] made private fifo\n");
+  }
 
+  int fd = open(msg,O_RDONLY);
   //waits for response
   char response[HANDSHAKE_BUFFER_SIZE];
-  read(private,response,sizeof(response));
-  printf("[client] recieved response\n");
+  read(fd,response,sizeof(response));
+  printf("[client] recieved response:%s\n",response);
   //writes final response
   write(*to_server,ACK,sizeof(ACK));
   remove("private");
 
-  return private;
+  return fd;
 }
