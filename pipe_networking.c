@@ -85,7 +85,7 @@ int client_handshake(int *to_server) {
   printf("[client] recieved response:%s\n",response);
   //writes final response
   write(*to_server,ACK,sizeof(ACK));
-  remove("private");
+  remove(msg);
 
   return fd;
 }
